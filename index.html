@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ontario Trades Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky weighting panel on the left, live ranking grid on the right; on phones it stacks and a top-3 strip stays pinned while sliders move. */
+:root{
+  --bg:#edf0f4; --surface:#ffffff; --surface2:#e4e9ef; --ink:#16202a; --muted:#4d5b69; --line:#d0d8e0;
+  --accent:#1d4f91; --on-accent:#ffffff; --focus:#d96c00; --jedge:rgba(22,32,42,.38);
+  --h1:#eaf0f7; --h2:#c8daee; --h3:#9ec0e2; --h4:#6a9bcf; --h5:#1d4f91;
+  --t1:#16202a; --t2:#16202a; --t3:#16202a; --t4:#0d1620; --t5:#ffffff;
+  --up:#176a3a; --down:#9b3a1a;
+  --font-display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e141b; --surface:#16202a; --surface2:#1f2b37; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3745;
+    --accent:#79b1f0; --on-accent:#0b1520; --focus:#ffa033; --jedge:rgba(231,237,243,.4);
+    --h1:#1a2531; --h2:#203750; --h3:#25577f; --h4:#2f74bb; --h5:#93c5f8;
+    --t1:#b7c4d1; --t2:#dbe6f1; --t3:#f2f6fa; --t4:#ffffff; --t5:#0b1520;
+    --up:#6fcf97; --down:#f0a07a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#16202a; --surface2:#1f2b37; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3745;
+  --accent:#79b1f0; --on-accent:#0b1520; --focus:#ffa033; --jedge:rgba(231,237,243,.4);
+  --h1:#1a2531; --h2:#203750; --h3:#25577f; --h4:#2f74bb; --h5:#93c5f8;
+  --t1:#b7c4d1; --t2:#dbe6f1; --t3:#f2f6fa; --t4:#ffffff; --t5:#0b1520;
+  --up:#6fcf97; --down:#f0a07a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;
+  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2rem,4.4vw,3.1rem);letter-spacing:.005em}
+h2{font-size:1.65rem}
+h3{font-size:1.2rem}
+p{margin:0}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.kicker{font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.top{display:flex;flex-direction:column;gap:10px;max-width:70ch}
+.lede{color:var(--muted);font-size:1.02rem}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 28px;padding:14px 0;border-block:1px solid var(--line)}
+.how p{font-size:.9rem;color:var(--muted)}
+.how strong{color:var(--ink);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+@media (min-width:1100px){.layout{grid-template-columns:320px minmax(0,1fr);gap:24px}}
+
+/* weighting panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (min-width:1100px){.panel{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
+.panel>*{flex-shrink:0}
+.panel h2{font-size:1.3rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.84rem;cursor:pointer;line-height:1.25}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.pdesc{font-size:.84rem;color:var(--muted);min-height:2.6em}
+.top3{display:none;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);margin:0 -16px;padding:8px 16px;border-block:1px solid var(--line);list-style:none}
+.top3 ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.top3 li{display:flex;flex-direction:column;min-width:0;font-size:.78rem;line-height:1.2}
+.top3 li b{font-family:var(--font-display);font-size:1.05rem;font-weight:600;display:flex;gap:6px;align-items:baseline}
+.top3 li span{overflow-wrap:anywhere}
+@media (max-width:1099px){.top3{display:block}}
+.filters{display:flex;flex-direction:column;gap:8px;font-size:.86rem}
+.filters label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.filters input{margin-top:3px;accent-color:var(--accent)}
+.count{font-size:.8rem;color:var(--muted)}
+details.sl>summary{cursor:pointer;font-weight:600;font-size:.92rem;padding:4px 0}
+details.sl[open]>summary{margin-bottom:6px}
+.grp{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.grp legend{font-family:var(--font-display);font-weight:600;font-size:1.02rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);padding:0 0 4px;border-bottom:1px solid var(--line);width:100%;margin-bottom:6px}
+.slider label{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.86rem;font-weight:500}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) 3.4rem;gap:8px;align-items:center}
+.srow input{width:100%;accent-color:var(--accent);margin:4px 0}
+.srow output{font-variant-numeric:tabular-nums;text-align:right;font-size:.84rem;color:var(--muted)}
+.reset{align-self:flex-start;background:none;border:1px solid var(--line);border-radius:6px;padding:5px 12px;font-size:.84rem;cursor:pointer}
+.reset:hover{border-color:var(--accent)}
+
+/* tags */
+.tag{display:inline-block;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.tag.d{background:var(--accent);color:var(--on-accent)}
+.tag.r{border:1px solid var(--accent);color:var(--accent)}
+.tag.j{border:1px dashed var(--muted);color:var(--muted)}
+
+/* results */
+.results{min-width:0;container-type:inline-size;display:flex;flex-direction:column;gap:10px}
+.rhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 16px}
+.rhead p{font-size:.86rem;color:var(--muted)}
+.sortsel{display:none;align-items:center;gap:8px;font-size:.86rem}
+.sortsel select{font:inherit;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rowgrid{display:grid;grid-template-columns:2.7rem minmax(9rem,1.1fr) minmax(10rem,1.4fr) repeat(14,minmax(1.8rem,1fr));column-gap:2px;align-items:center}
+.head{padding:0 10px}
+.head .hb{background:none;border:0;padding:2px 0;cursor:pointer;color:var(--muted);font-size:.78rem;font-weight:600;text-align:left}
+.head .hb:hover,.head .hb[aria-pressed="true"]{color:var(--accent)}
+.head .hb[aria-pressed="true"]{text-decoration:underline;text-underline-offset:3px}
+.hf{display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end}
+.hf .hb{writing-mode:vertical-rl;transform:rotate(180deg);height:4.4rem;white-space:nowrap;text-align:right}
+.hf.gs{margin-left:5px}
+.hf .tag{padding:0 4px;font-size:.62rem;border-radius:3px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.card.open{border-color:var(--accent)}
+.rk{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+.rk b{font-family:var(--font-display);font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.dl{font-size:.68rem;font-weight:600;white-space:nowrap}
+.dl.up{color:var(--up)} .dl.down{color:var(--down)}
+.nm{min-width:0;padding-right:8px}
+.tbtn{background:none;border:0;padding:6px 0;text-align:left;cursor:pointer;font-weight:600;font-size:.95rem;line-height:1.2;display:flex;gap:6px;align-items:center;max-width:100%}
+.tbtn::after{content:"+";font-weight:500;color:var(--muted);font-size:1.05rem;line-height:1}
+.tbtn[aria-expanded="true"]::after{content:"\2212"}
+.tbtn:hover{color:var(--accent)}
+.sc{display:flex;align-items:center;gap:8px;padding-right:8px}
+.bar{flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;min-width:0}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:5px}
+.sc b{font-family:var(--font-display);font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums;min-width:2.6rem;text-align:right}
+.cells{display:contents}
+.cell{display:flex;flex-direction:column;align-items:center;justify-content:center;height:2.1rem;border-radius:4px;font-variant-numeric:tabular-nums;font-weight:600;font-size:.92rem;border:1px solid transparent}
+.cell.gs{margin-left:5px}
+.cell.j{border:1px dashed var(--jedge)}
+.cell i{display:none;font-style:normal;font-weight:500;font-size:.62rem;line-height:1.1;letter-spacing:.01em}
+.h1{background:var(--h1);color:var(--t1)} .h2{background:var(--h2);color:var(--t2)} .h3{background:var(--h3);color:var(--t3)}
+.h4{background:var(--h4);color:var(--t4)} .h5{background:var(--h5);color:var(--t5)}
+@container (max-width:759px){
+  .head{display:none}
+  .sortsel{display:flex}
+  .rowgrid{grid-template-columns:2.6rem minmax(0,1fr) minmax(6.4rem,9rem);row-gap:4px}
+  .cells{display:grid;grid-column:1/-1;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-top:4px}
+  .cell,.cell.gs{height:2.9rem;margin-left:0}
+  .cell i{display:block}
+  .cell.j{border-style:dashed}
+}
+
+/* detail */
+.detail{display:grid;gap:16px 28px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));padding:12px 2px 8px;border-top:1px solid var(--line);margin-top:6px}
+.detail[hidden]{display:none}
+.detail h4{font-family:var(--font-display);font-size:1.05rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:.86rem;margin:0}
+.facts dt{color:var(--muted)} .facts dd{margin:0;font-variant-numeric:tabular-nums;font-weight:500}
+.detail ul{margin:0;padding-left:1.1rem;font-size:.88rem;display:flex;flex-direction:column;gap:4px}
+.lines{display:flex;flex-direction:column;gap:8px;font-size:.88rem}
+.lines b{font-weight:600}
+.lines .w{color:var(--muted)}
+.dlinks{font-size:.82rem;display:flex;gap:14px;flex-wrap:wrap}
+.span2{grid-column:1/-1}
+
+/* guide */
+.guide{display:flex;flex-direction:column;gap:18px}
+.gintro{max-width:75ch;color:var(--muted)}
+.ggrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))}
+.gcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.gcard header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.gcard dl{margin:0;display:grid;gap:6px;font-size:.87rem}
+.gcard dt{font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.gcard dd{margin:0}
+.gh{font-family:var(--font-display);font-size:1.25rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-top:4px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.legend span{display:flex;gap:8px;align-items:center}
+.notes{max-width:80ch;display:flex;flex-direction:column;gap:10px;font-size:.9rem;color:var(--muted)}
+.notes h2{color:var(--ink)}
+.src{columns:2 340px;column-gap:32px;font-size:.84rem;padding-left:1.1rem;margin:0}
+.src li{break-inside:avoid;margin-bottom:4px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+<style>body{margin:0}</style>
+</head><body>
+
+<div class="wrap">
+<header class="top">
+  <p class="kicker">Ontario skilled trades · 16 trades · 14 factors · data as of October 2026</p>
+  <h1>What matters most to you?</h1>
+  <p class="lede">Choose a profile or drag the sliders. The ranking re-sorts as you go. Every trade is scored 1 to 5 on 14 factors, and 7 of those scores are judgment calls, marked J, so read them as a starting point to question.</p>
+</header>
+
+<div class="how">
+  <p><strong>Scores run 1 to 5, and 5 is always better for you.</strong> That means better paid, more in demand, cheaper to start, safer from AI, easier on the body.</p>
+  <p><strong>Darker blue is a higher score.</strong> D marks published data, R marks data plus a rule I applied, J marks my judgment. Judgment cells have a dashed edge.</p>
+  <p><strong>Weights decide what counts.</strong> Shares always add up to 100%. Click a trade to see its numbers, pros, cons and what to watch for.</p>
+</div>
+
+<div class="layout">
+  <aside class="panel" id="controls" aria-label="Weighting controls">
+    <div>
+      <h2>Profile</h2>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Preset profiles"></div>
+    <p class="pdesc" id="pdesc"></p>
+    <div class="top3" id="top3box" aria-live="polite"><ol id="top3"></ol></div>
+    <div class="filters">
+      <label><input type="checkbox" id="f-g10"> Only trades you can start with Grade 10</label>
+      <label><input type="checkbox" id="f-local"> Hide trades with a weak Windsor–Sarnia outlook (Limited or worse)</label>
+      <p class="count" id="count"></p>
+    </div>
+    <details class="sl" id="sliderbox" open>
+      <summary>Fine-tune the 14 weights</summary>
+      <div id="sliders"></div>
+    </details>
+    <button class="reset" id="reset" type="button">Reset to original six</button>
+  </aside>
+
+  <section class="results" aria-label="Ranking">
+    <div class="rhead">
+      <h2>Ranking</h2>
+      <p id="sortnote">Weighted score out of 5. Click a column heading to sort by that factor.</p>
+    </div>
+    <label class="sortsel">Sort by <select id="sortsel"></select></label>
+    <div class="head rowgrid" id="head" aria-label="Column headings"></div>
+    <ol class="rank" id="rank"></ol>
+  </section>
+</div>
+
+<section class="guide" id="guide" aria-labelledby="gt">
+  <h2 id="gt">How each column is scored</h2>
+  <p class="gintro">Every factor is scored 1 to 5 for each trade, and 5 is always the better end. Where a published number exists, a fixed rule turns it into the score. Where none exists, the score is my judgment, and the card says so. The last line of each card says how far to trust it.</p>
+  <div class="legend">
+    <span><i class="tag d">Data</i> a published figure, banded by a fixed rule</span>
+    <span><i class="tag r">Data + rule</i> published figures plus adjustments I applied</span>
+    <span><i class="tag j">Judgment</i> my reading of the evidence, no direct figure</span>
+  </div>
+  <div id="gbody"></div>
+</section>
+
+<section class="notes" id="notes">
+  <h2>What the scores leave out</h2>
+  <p>Wages are Job Bank base hourly pay for fully certified workers (published November 2025), not annual income, overtime or union total packages. Outlooks are Job Bank's 2025–27 forecasts for Ontario and for the Windsor–Sarnia region, which includes Chatham-Kent. They are broad forecasts and the regional samples are small. Benefits count in both Job Stability and Benefits coverage, so set one of those sliders to zero if you do not want them counted twice.</p>
+  <p>Check current wages, intake dates and apprenticeship sponsors with Skilled Trades Ontario, Job Bank and local employers before deciding. This is a comparison aid and not career advice.</p>
+  <h3>Sources</h3>
+  <ul class="src" id="src"></ul>
+</section>
+</div>
+
+<script>
+const TRADES = [{"k": "pe", "name": "Power engineer", "full": "Power (stationary) engineer", "med": 57.0, "hi": 87.0, "ws": 60.0, "ben": 99.8, "yr": 84, "se": "<5", "emp": 10300, "on_out": "Good", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": null, "sch": null, "comp": "Regulated by TSSA (not an apprenticeship)", "edu": "College diploma route (2 years)", "early": 215460, "s": {"income": 5, "early": 3, "stability": 5, "ai": 3, "need": 4, "local": 3, "up": 4, "exit": 4, "entry": 3, "costs": 2, "package": 5, "cond": 4, "acute": 5, "wear": 5}, "pros": ["Highest pay in the group: $57.00/hr median, $87.00 at the top", "84% work all year, 99.8% get benefits, under 5% self-employed", "Job Bank rates Ontario prospects Good (utility infrastructure investment)", "Mostly indoor plant work, light on the body"], "cons": ["Not an apprenticeship: a two-year college diploma, then the TSSA 4th and 3rd class exams after two years as an operator; St. Clair College's program page lists the program as 'Closed', so check intake", "Windsor-Sarnia outlook is only Moderate; jobs sit in utilities, hospitals and large plants", "Plants are increasingly automated and remotely monitored (my judgment; no study found)", "Shift work is common (judgment)"], "entry": "College diploma (2 years), then the TSSA 4th and 3rd class exams after two years as an operator (St. Clair College). Not in the apprenticeship chart.", "cost": "Two-year college diploma (St. Clair College); I did not find a tuition figure.", "cond": "Indoor plants, hospitals and utilities. Shift and on-call work is common (judgment).", "exit": "Chief or plant engineer, building-operations manager, TSSA inspector, instructor.", "watch": "No trade-specific AI study or injury data found; those scores are judgment."}, {"k": "elev", "name": "Elevator mechanic", "full": "Elevator constructor-mechanic", "med": 43.5, "hi": 68.0, "ws": null, "ben": 95.2, "yr": 74, "se": "<5", "emp": 2850, "on_out": "Moderate", "ws_out": "Undetermined", "ws_trend": "Undetermined", "hours": 8000, "sch": 720, "comp": "Voluntary (also TSSA-regulated)", "edu": "Grade 12", "early": 244590, "s": {"income": 5, "early": 5, "stability": 5, "ai": 5, "need": 3, "local": 2, "up": 3, "exit": 4, "entry": 2, "costs": 4, "package": 5, "cond": 3, "acute": 2, "wear": 4}, "pros": ["High pay: $43.50/hr median, $68.00 at the top", "74% work all year, 95.2% get benefits, under 5% self-employed", "Maintenance of existing elevators and barrier-free access rules keep work coming (Job Bank)", "Varied on-site work, low AI exposure"], "cons": ["Small trade: about 2,850 Ontario jobs, and Job Bank gives no Windsor-Sarnia outlook because there are too few", "Hard to get into: Grade 12, an 8,000-hour apprenticeship, few sponsors", "Shaft work at heights and heavy parts", "Few retirements opening spots (Job Bank)"], "entry": "Grade 12; 8,000 hours (720 in school). Voluntary trade, also regulated by TSSA. Very few regional jobs.", "cost": "Employer supplies most tools (judgment).", "cond": "Mix of construction crews and on-call service routes; mostly indoors (judgment).", "exit": "Field supervisor, TSSA elevator inspector, estimator or sales, consultant.", "watch": "No regional outlook: scored 2 for local demand as a precaution."}, {"k": "elec", "name": "Electrician", "full": "Construction & maintenance electrician", "med": 34.0, "hi": 50.5, "ws": 35.0, "ben": 83.7, "yr": 56, "se": "10", "emp": 44100, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 9000, "sch": 1050, "comp": "Compulsory", "edu": "Grade 10", "early": 193140, "s": {"income": 3, "early": 1, "stability": 2, "ai": 5, "need": 4, "local": 3, "up": 5, "exit": 5, "entry": 3, "costs": 3, "package": 2, "cond": 3, "acute": 3, "wear": 3}, "pros": ["Among the lowest AI-exposure estimates in circulation (Planera, secondhand: 14%)", "Strongest demand drivers: grid growth, data centres, electrification (IESO)", "Most ways up: foreman, estimator, inspector, contractor (judgment)", "Windsor-Sarnia median $35.00, $54.70 at the high end"], "cons": ["Province-wide median ($34.00) is mid-pack", "Only 56% work all year (44% part of the year); 83.7% get benefits", "9,000 hours (about 5 years), 1,050 of them in school; employers prefer apprentices who already took pre-apprenticeship training", "Overhead work, ladders and crawl spaces"], "entry": "Grade 10 minimum; compulsory trade, so you need a sponsoring employer. Employers prefer pre-apprenticeship grads (Herzing), so scored one point lower than the rule gives.", "cost": "Own hand tools; $600 Ontario tools grant after 12 months registered. A pre-apprenticeship course is common.", "cond": "Mix of indoor and outdoor sites, seasonal slowdowns, some travel (judgment).", "exit": "Estimator, project manager, ESA inspector, instructor, own contracting business, controls or low-voltage specialist.", "watch": "Union agreements pay more than the median (2019-22 GTA agreement: $45.17/hr plus $8.24 pension and $4.31 health)."}, {"k": "pipe", "name": "Steamfitter-pipefitter", "full": "Steamfitter-pipefitter / sprinkler fitter", "med": 45.96, "hi": 56.88, "ws": 50.99, "ben": 97.0, "yr": 53, "se": "<5", "emp": 7200, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 9000, "sch": 720, "comp": "Compulsory (sprinkler fitter 7,200 h)", "edu": "Grade 10", "early": 248184, "s": {"income": 5, "early": 5, "stability": 3, "ai": 4, "need": 4, "local": 3, "up": 4, "exit": 4, "entry": 4, "costs": 3, "package": 5, "cond": 2, "acute": 2, "wear": 2}, "pros": ["High pay: $45.96/hr median ($50.99 in Windsor-Sarnia)", "97% get benefits; under 5% self-employed", "Non-residential, infrastructure, plant and nuclear work (Job Bank, BuildForce)", "Sprinkler fitting is a shorter route (7,200 hours)"], "cons": ["Only 53% work all year: lots of project and shutdown work", "Heavy pipe, awkward positions, travel (judgment)", "Few retirements opening spots; employment stable, not growing (Job Bank)", "Shop pipe welding is being semi-automated (Novarc cobots)"], "entry": "Grade 10; 9,000 hours (720 in school). Compulsory trades: steamfitter and sprinkler and fire protection installer.", "cost": "Own hand tools; $600 tools grant after 12 months registered.", "cond": "Outdoor and plant sites, shutdown schedules, overtime and travel (judgment).", "exit": "Foreman, superintendent, estimator, inspector, instructor.", "watch": "Union sprinkler agreement (2019-22): Toronto $65.29/hr journeyperson, Ontario Central $63.64."}, {"k": "line", "name": "Powerline technician", "full": "Powerline technician", "med": 45.0, "hi": 62.0, "ws": 45.0, "ben": 99.0, "yr": 75, "se": "<5", "emp": 5950, "on_out": "Good", "ws_out": "Good", "ws_trend": "Shortage", "hours": 8000, "sch": 320, "comp": "Voluntary", "edu": "Grade 10", "early": 252000, "s": {"income": 5, "early": 5, "stability": 5, "ai": 4, "need": 5, "local": 5, "up": 3, "exit": 3, "entry": 3, "costs": 3, "package": 5, "cond": 1, "acute": 1, "wear": 3}, "pros": ["High pay: $45.00/hr median, $62.00 at the top", "99% get benefits; 75% work all year; employers are mainly utilities", "Job Bank outlook Good in Ontario and Windsor-Sarnia, where 2023-25 was a labour shortage", "Grid modernization and pole replacement (Job Bank); IESO sees demand up 65% by 2050"], "cons": ["Storm call-outs, heights, heavy gear, all-weather outdoor work", "Small: about 210 jobs in Windsor-Sarnia (2021), mostly utilities", "Hard to get a first spot in practice: utilities tend to hire from college powerline programs (judgment)", "Flatter ceiling than other top trades; almost no self-employment"], "entry": "Grade 10; 8,000 hours (320 in school). Voluntary trade. Rule gives 5; lowered to 3 because spots are few (judgment).", "cost": "Employer supplies climbing gear and tools (judgment); a pre-employment college program may be needed.", "cond": "Outdoors in all weather, storm call-outs, heights, some travel (judgment).", "exit": "Line foreman, trainer, utility inspector or planner.", "watch": "Entry score is a judgment adjustment, not data."}, {"k": "hvac", "name": "HVAC-R mechanic", "full": "HVAC-R mechanic", "med": 37.0, "hi": 58.0, "ws": 33.64, "ben": 77.1, "yr": 66, "se": "14", "emp": 22350, "on_out": "Good", "ws_out": "Good", "ws_trend": "Shortage", "hours": 9000, "sch": 720, "comp": "Compulsory (residential AC mechanic 4,500 h)", "edu": "Grade 10", "early": 205470, "s": {"income": 4, "early": 2, "stability": 3, "ai": 4, "need": 4, "local": 5, "up": 4, "exit": 4, "entry": 5, "costs": 3, "package": 2, "cond": 3, "acute": 3, "wear": 3}, "pros": ["Job Bank outlook Good in Ontario and Windsor-Sarnia; labour shortage there in 2023-25", "Heat-pump and efficiency programs, food-plant refrigeration (Job Bank)", "Contractor route: 14% self-employed", "Grade 10 minimum"], "cons": ["Median $37.00 province-wide, only $33.64 in Windsor-Sarnia", "Only 77.1% get benefits; 66% work all year", "Attics, rooftops, heat and cold; seasonal peaks"], "entry": "Grade 10; 9,000 hours (720 in school); compulsory. Residential AC mechanic is a shorter 4,500-hour route.", "cost": "Own tools and gauges; $600 tools grant after 12 months registered.", "cond": "Service calls with seasonal peaks, attics and rooftops (judgment).", "exit": "Service manager, estimator, building-controls specialist, contractor, TSSA refrigeration work.", "watch": ""}, {"k": "plum", "name": "Plumber", "full": "Plumber", "med": 32.5, "hi": 50.38, "ws": 32.5, "ben": 73.5, "yr": 63, "se": "18", "emp": 22300, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 9000, "sch": 720, "comp": "Compulsory", "edu": "Grade 10", "early": 187470, "s": {"income": 3, "early": 1, "stability": 2, "ai": 5, "need": 3, "local": 3, "up": 5, "exit": 4, "entry": 4, "costs": 3, "package": 1, "cond": 3, "acute": 4, "wear": 2}, "pros": ["Low AI exposure (Planera, secondhand: 21%; StatCan finds plumbers less AI-exposed)", "18% self-employed: a contractor route; a Herzing College blog citing Job Bank gives plumbing contractors a $53.43 median (not re-checked)", "Grade 10 minimum"], "cons": ["Median $32.50; only 73.5% get benefits; 63% work all year", "Job Bank notes several unemployed plumbers with recent experience in Ontario", "Housing slump hits residential plumbing first", "Kneeling, crawling and confined spaces"], "entry": "Grade 10; 9,000 hours (720 in school); compulsory.", "cost": "Own hand tools; $600 tools grant after 12 months registered.", "cond": "Service calls and new-build sites; on-call work common (judgment).", "exit": "Contractor, municipal plumbing inspector, estimator, instructor.", "watch": "Contractor wage figure was not re-verified."}, {"k": "inde", "name": "Industrial electrician", "full": "Industrial electrician", "med": 40.5, "hi": 48.0, "ws": 38.25, "ben": 98.2, "yr": 71, "se": "<5", "emp": 16100, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 9000, "sch": 1050, "comp": "Voluntary", "edu": "Grade 12", "early": 221850, "s": {"income": 4, "early": 3, "stability": 3, "ai": 4, "need": 2, "local": 3, "up": 3, "exit": 4, "entry": 3, "costs": 3, "package": 5, "cond": 4, "acute": 3, "wear": 5}, "pros": ["$40.50/hr median; 98.2% get benefits; 71% work all year", "Indoor work maintaining automated systems", "Controls and PLC skills transfer to many plants (judgment)"], "cons": ["Job Bank projects employment decline, with weak manufacturing demand under tariffs", "In Windsor-Sarnia 61% of industrial electrician jobs are in vehicle and parts manufacturing", "Grade 12; 9,000 hours (1,050 in school)", "Shift and plant schedules (judgment)"], "entry": "Grade 12; 9,000 hours; voluntary trade.", "cost": "Employer supplies most meters and tools (judgment); $600 tools grant.", "cond": "Indoor plants, shifts, but regular and climate-controlled (judgment).", "exit": "Maintenance supervisor, controls or automation specialist, planner, reliability technician.", "watch": ""}, {"k": "crane", "name": "Crane operator", "full": "Crane operator", "med": 40.48, "hi": 53.94, "ws": 45.5, "ben": 90.9, "yr": 69, "se": "<5", "emp": 6650, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 6000, "sch": 480, "comp": "Compulsory (mobile crane 1: 6,000 h)", "edu": "Grade 10", "early": 250902, "s": {"income": 4, "early": 5, "stability": 4, "ai": 3, "need": 3, "local": 3, "up": 3, "exit": 3, "entry": 3, "costs": 4, "package": 4, "cond": 2, "acute": 3, "wear": 5}, "pros": ["$40.48/hr median ($45.50 in Windsor-Sarnia); 90.9% get benefits", "Seated work, easy on the body", "Mobile crane 1 is 6,000 hours (about 3.3 years)"], "cons": ["Project-based: 69% work all year", "Several unemployed experienced operators, province-wide and locally (Job Bank)", "Construction-cycle exposure", "Operating engineers were rated 88% automation potential in a 2018 US estimate (old and indicative)"], "entry": "Grade 10; mobile crane 1 is 6,000 hours (480 in school); compulsory. Several experienced operators are unemployed locally.", "cost": "Employer supplies the equipment; certification and course fees (judgment).", "cond": "Travel between sites, weather, long days, project layoffs (judgment).", "exit": "Crane safety or inspection, dispatcher, site supervisor.", "watch": ""}, {"k": "mill", "name": "Millwright", "full": "Millwright / industrial mechanic", "med": 35.59, "hi": 48.5, "ws": 35.57, "ben": 93.6, "yr": 73, "se": "<5", "emp": 38650, "on_out": "Moderate", "ws_out": "Limited", "ws_trend": "Surplus", "hours": 8000, "sch": 720, "comp": "Voluntary", "edu": "Grade 12 (industrial mechanic); Grade 10 (construction millwright)", "early": 206268, "s": {"income": 3, "early": 2, "stability": 3, "ai": 4, "need": 3, "local": 2, "up": 3, "exit": 4, "entry": 2, "costs": 2, "package": 4, "cond": 3, "acute": 3, "wear": 3}, "pros": ["93.6% get benefits; 73% work all year", "Nuclear refurbishment and mining demand (Job Bank)", "Skills carry across many industries", "Windsor-Sarnia median $35.57"], "cons": ["Job Bank projects employment decline; Windsor-Sarnia outlook is Limited with a labour surplus", "Job Bank flags weak manufacturing demand under tariffs", "Heavy components, awkward positions, shutdown work"], "entry": "Grade 12 (industrial mechanic) or Grade 10 (construction millwright); 8,000 hours; voluntary. Labour surplus locally.", "cost": "Large personal toolbox expected (judgment); $600 tools grant.", "cond": "Plant floors and shutdowns, some contract travel (judgment).", "exit": "Maintenance planner or supervisor, reliability engineer, inspector.", "watch": "Windsor-Essex postings for millwrights and industrial mechanics rose 12.5% in July 2026 (72 postings) even though Job Bank's outlook is Limited: a mixed signal."}, {"k": "hdet", "name": "Heavy-duty technician", "full": "Heavy-duty equipment technician", "med": 35.0, "hi": 51.19, "ws": 34.33, "ben": 91.8, "yr": 74, "se": "10", "emp": 14000, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 7000, "sch": 720, "comp": "Voluntary", "edu": "Grade 12", "early": 211620, "s": {"income": 3, "early": 2, "stability": 4, "ai": 4, "need": 3, "local": 3, "up": 3, "exit": 3, "entry": 3, "costs": 1, "package": 4, "cond": 3, "acute": 3, "wear": 1}, "pros": ["$35.00/hr median; 91.8% get benefits; 74% work all year", "Fleet and equipment servicing recurs (wholesale equipment, construction, agriculture)", "7,000 hours (about 3.9 years)"], "cons": ["Job Bank outlook is Moderate, and a moderate number of experienced workers are unemployed", "Among the hardest on the body in my scoring: heavy components, awkward positions", "Biggest tool burden in the group; the Ontario tools grant is largest ($1,000) for motive-power trades"], "entry": "Grade 12; 7,000 hours; voluntary trade.", "cost": "Motive-power trade: a big toolbox; Ontario's tools grant is $1,000 for these trades.", "cond": "Dealer shops and field service; indoors and outdoors (judgment).", "exit": "Service manager, parts manager, fleet supervisor.", "watch": ""}, {"k": "carp", "name": "Carpenter", "full": "Carpenter", "med": 32.0, "hi": 48.0, "ws": 30.0, "ben": 70.9, "yr": 50, "se": "35", "emp": 39200, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 7200, "sch": 720, "comp": "Voluntary (general carpenter)", "edu": "Grade 10", "early": 197100, "s": {"income": 3, "early": 2, "stability": 1, "ai": 4, "need": 3, "local": 3, "up": 4, "exit": 4, "entry": 3, "costs": 3, "package": 1, "cond": 2, "acute": 2, "wear": 2}, "pros": ["Largest trade here: about 39,200 Ontario jobs; 35% self-employed", "Easy to start a renovation business", "Grade 10; voluntary general carpenter trade"], "cons": ["Median $32.00 ($30.00 in Windsor-Sarnia); only 50% work all year; 70.9% get benefits", "Housing slump; several unemployed experienced carpenters locally (Job Bank)", "Knees, back, falls"], "entry": "Grade 10; 7,200 hours (720 in school); voluntary. Several experienced carpenters are unemployed locally.", "cost": "Own power and hand tools (judgment); $600 tools grant.", "cond": "Outdoor sites, weather, seasonal swings (more work in spring and summer, per Job Bank).", "exit": "Estimator, site superintendent, building inspector, own contractor.", "watch": ""}, {"k": "sheet", "name": "Sheet metal worker", "full": "Sheet metal worker", "med": 35.0, "hi": 48.17, "ws": 31.05, "ben": 99.3, "yr": 55, "se": "9", "emp": 5650, "on_out": "Limited", "ws_out": "Very limited", "ws_trend": "Surplus", "hours": 9000, "sch": 720, "comp": "Compulsory", "edu": "Grade 10", "early": 196920, "s": {"income": 3, "early": 2, "stability": 2, "ai": 3, "need": 2, "local": 1, "up": 3, "exit": 3, "entry": 3, "costs": 3, "package": 5, "cond": 3, "acute": 3, "wear": 3}, "pros": ["99.3% get benefits", "Both field HVAC work and shop work", "Grade 10 minimum"], "cons": ["Job Bank outlook Limited in Ontario, Very limited in Windsor-Sarnia (labour surplus)", "Only 55% work all year", "Shop side exposed to the manufacturing downturn"], "entry": "Grade 10; 9,000 hours; compulsory. Local surplus of workers.", "cost": "Own tools (judgment); $600 tools grant.", "cond": "Shops and sites; mixed indoor and outdoor (judgment).", "exit": "Estimator, detailer, foreman.", "watch": ""}, {"k": "auto", "name": "Auto technician", "full": "Automotive service technician", "med": 30.0, "hi": 43.27, "ws": 27.0, "ben": 80.9, "yr": 72, "se": "17", "emp": 53650, "on_out": "Moderate", "ws_out": "Moderate", "ws_trend": "Balanced", "hours": 7220, "sch": 720, "comp": "Compulsory", "edu": "Grade 12", "early": 188220, "s": {"income": 2, "early": 1, "stability": 3, "ai": 3, "need": 3, "local": 3, "up": 3, "exit": 3, "entry": 3, "costs": 1, "package": 2, "cond": 3, "acute": 4, "wear": 2}, "pros": ["Steady repair demand; several positions opening from retirements (Job Bank)", "72% work all year", "Indoor shop work with regular hours (judgment)"], "cons": ["Low pay: $30.00/hr median, $27.00 in Windsor-Sarnia", "80.9% get benefits", "Big personal toolbox; electric vehicles and software diagnostics are changing the work (judgment)"], "entry": "Grade 12; 7,220 hours; compulsory. A moderate number of experienced technicians are unemployed locally.", "cost": "Motive-power trade: a large toolbox, often thousands of dollars (judgment); $1,000 tools grant.", "cond": "Indoor shop; flat-rate pay pressure at some employers (judgment).", "exit": "Service advisor, service manager, instructor.", "watch": ""}, {"k": "weld", "name": "Welder", "full": "Welder", "med": 28.0, "hi": 41.28, "ws": 25.5, "ben": 88.5, "yr": 64, "se": "7", "emp": 28800, "on_out": "Very limited", "ws_out": "Very limited", "ws_trend": "Balanced", "hours": 6000, "sch": 720, "comp": "Voluntary", "edu": "Grade 12", "early": 192690, "s": {"income": 2, "early": 1, "stability": 2, "ai": 2, "need": 1, "local": 1, "up": 3, "exit": 3, "entry": 2, "costs": 3, "package": 3, "cond": 2, "acute": 3, "wear": 1}, "pros": ["Skills carry across industries", "Pipe-welding and inspector routes up", "6,000 hours (about 3.3 years); voluntary trade"], "cons": ["Median $28.00 ($25.50 in Windsor-Sarnia)", "Job Bank outlook Very limited in Ontario and Windsor-Sarnia; several experienced welders unemployed", "Production welding is the most robot-exposed work here (Novarc cobots)", "Heat, fumes, awkward postures"], "entry": "Grade 12; 6,000 hours; voluntary. Several experienced welders are unemployed locally.", "cost": "Own helmet, gloves and protective gear; some shops supply machines (judgment).", "cond": "Heat, fumes, shop or outdoor sites, shift work (judgment).", "exit": "Welding inspector (CWB), instructor, supervisor.", "watch": ""}, {"k": "tnd", "name": "Tool and die maker", "full": "Tool and die maker", "med": 34.0, "hi": 42.5, "ws": 29.0, "ben": 88.1, "yr": 66, "se": "<5", "emp": 7700, "on_out": "Limited", "ws_out": "Limited", "ws_trend": "Surplus", "hours": 8000, "sch": 720, "comp": "Voluntary", "edu": "Grade 12", "early": 199940, "s": {"income": 3, "early": 2, "stability": 2, "ai": 2, "need": 1, "local": 2, "up": 2, "exit": 3, "entry": 2, "costs": 2, "package": 3, "cond": 4, "acute": 4, "wear": 4}, "pros": ["Precise indoor shop work, lighter on the body", "$34.00/hr median; 88.1% get benefits", "Day-shift schedules are common (judgment)"], "cons": ["Job Bank outlook Limited in Ontario and Windsor-Sarnia; projected employment decline", "38% of Ontario tool and die jobs are in vehicle and parts manufacturing, which is under tariff pressure", "Automation and 3D printing may change the skills needed (Job Bank)"], "entry": "Grade 12; 8,000 hours; voluntary. Labour surplus locally.", "cost": "Own precision measuring tools (judgment); $600 tools grant.", "cond": "Clean indoor shop, mostly day shift (judgment).", "exit": "Tool design, CNC programming, quality or inspection.", "watch": "Windsor-Essex tool and die postings rose 25.7% in July 2026 (44 postings) despite the Limited outlook: a mixed signal."}];
+const PROFILES = {"six": {"income": 20, "early": 0, "stability": 15, "ai": 15, "need": 15, "local": 0, "up": 20, "exit": 0, "entry": 0, "costs": 0, "package": 0, "cond": 0, "acute": 7.5, "wear": 7.5}, "equal": {"income": 7, "early": 7, "stability": 7, "ai": 7, "need": 7, "local": 7, "up": 7, "exit": 7, "entry": 7, "costs": 7, "package": 7, "cond": 7, "acute": 7, "wear": 7}, "fast": {"income": 10, "early": 25, "stability": 10, "ai": 0, "need": 0, "local": 15, "up": 0, "exit": 0, "entry": 20, "costs": 15, "package": 5, "cond": 0, "acute": 0, "wear": 0}, "body": {"income": 10, "early": 0, "stability": 10, "ai": 5, "need": 5, "local": 0, "up": 0, "exit": 10, "entry": 0, "costs": 0, "package": 0, "cond": 10, "acute": 20, "wear": 30}, "home": {"income": 10, "early": 10, "stability": 15, "ai": 0, "need": 10, "local": 30, "up": 0, "exit": 0, "entry": 15, "costs": 0, "package": 10, "cond": 0, "acute": 0, "wear": 0}, "money": {"income": 25, "early": 10, "stability": 10, "ai": 10, "need": 10, "local": 0, "up": 20, "exit": 5, "entry": 0, "costs": 0, "package": 10, "cond": 0, "acute": 0, "wear": 0}, "ai": {"income": 10, "early": 0, "stability": 15, "ai": 30, "need": 15, "local": 10, "up": 10, "exit": 10, "entry": 0, "costs": 0, "package": 0, "cond": 0, "acute": 0, "wear": 0}, "secure": {"income": 10, "early": 0, "stability": 25, "ai": 10, "need": 15, "local": 10, "up": 0, "exit": 0, "entry": 0, "costs": 0, "package": 20, "cond": 0, "acute": 0, "wear": 10}, "data": {"income": 14, "early": 14, "stability": 14, "ai": 0, "need": 14, "local": 14, "up": 0, "exit": 0, "entry": 14, "costs": 0, "package": 14, "cond": 0, "acute": 0, "wear": 0}};
+
+const GROUPS=[
+ {id:'money',label:'Money'},
+ {id:'sec',label:'Security and demand'},
+ {id:'path',label:'Getting in and moving up'},
+ {id:'body',label:'Body and daily life'}
+];
+const TL={d:'Data',r:'Data + rule',j:'Judgment'};
+const FACTORS=[
+ {k:'income',short:'Pay',label:'Wage level',group:'money',type:'d',
+  measures:'What a fully certified worker typically earns per hour in Ontario.',
+  how:'Job Bank Ontario median hourly wage. 5 = $43 or more, 4 = $37 to $42.99, 3 = $32 to $36.99, 2 = $28 to $31.99, 1 = under $28.',
+  basis:'Job Bank prevailing wages, published November 19, 2025. The high-end wage ($41 to $87 depending on trade) is shown in each trade’s detail but not scored.',
+  sure:'High, as base pay. It leaves out overtime, union total packages and self-employed income.'},
+ {k:'early',short:'Early $',label:'Earnings while training',group:'money',type:'d',
+  measures:'What you would earn in your first five years, apprenticeship years included.',
+  how:'Modelled at 1,800 paid hours a year. An apprentice earns 40% of the journeyperson median in the first year, rising 10 points a year to 80%, never below minimum wage ($17.95 from October 1, 2026). Full pay starts when the trade’s required hours are done (6,000 for a welder, 9,000 for an electrician). The five-year dollar total is stretched across 1 to 5 between the lowest ($187,000) and highest ($252,000) of the 16 trades. Power engineer assumes a two-year diploma with no pay, then three working years at 60%, 70% and 80%.',
+  basis:'Job Bank wages, Skilled Trades Ontario apprenticeship hours (2026 chart), and the 40% to 80% ladder in a 2019–22 Greater Toronto electrical agreement.',
+  sure:'Medium. The ladder comes from one older union agreement, non-union employers vary, and total hours include school time at the same pace.'},
+ {k:'package',short:'Benefits',label:'Benefits coverage',group:'money',type:'d',
+  measures:'How likely a worker in the trade is to have employer benefits.',
+  how:'Job Bank share of workers with employer-paid benefits. 5 = 95% or more, 4 = 90 to 94%, 3 = 85 to 89%, 2 = 75 to 84%, 1 = under 75%.',
+  basis:'Job Bank wage reports, November 2025. Pension value is not included.',
+  sure:'High for coverage. It says nothing about how generous the plan is.'},
+ {k:'stability',short:'Stable',label:'Job stability',group:'sec',type:'r',
+  measures:'How steadily workers in the trade stay employed.',
+  how:'Average of two bands, rounded: the share who work all year (5 = 80% or more, 4 = 72 to 79%, 3 = 65 to 71%, 2 = 58 to 64%, 1 = under 58%) and the benefits band above. Minus 1 for trades concentrated in manufacturing (industrial electrician, millwright, sheet metal, welder, tool and die), where Job Bank flags weak manufacturing demand under tariffs.',
+  basis:'Job Bank “work all year” and benefits shares, November 2025, plus the manufacturing flag from the Job Bank outlook text.',
+  sure:'Medium. Year-round work is a province-wide share, and the manufacturing adjustment is my call.'},
+ {k:'need',short:'Need',label:'Ontario demand',group:'sec',type:'r',
+  measures:'How many openings the province is expected to have for the trade.',
+  how:'Job Bank Ontario 2025–27 outlook as a score: Very limited 1, Limited 2, Moderate 3, Good 4, Very good 5. Plus 1 where I found a documented structural driver (electrician: grid growth, data centres and electrification; pipefitter: infrastructure and nuclear; powerline: grid modernization; millwright: nuclear refurbishment). Minus 1 where Job Bank projects employment decline (industrial electrician, millwright, welder, tool and die). Held between 1 and 5.',
+  basis:'Job Bank outlooks (updated December 2025), IESO 2026 Annual Planning Outlook, BuildForce Canada July 2026.',
+  sure:'Medium. Job Bank outlooks are modelled forecasts, and my adjustments are judgment applied to a rule.'},
+ {k:'local',short:'Local',label:'Local demand (Chatham-Kent)',group:'sec',type:'r',
+  measures:'Demand in the Windsor–Sarnia region, the Job Bank region that includes Chatham-Kent.',
+  how:'Job Bank Windsor–Sarnia 2025–27 outlook on the same 1 to 5 scale, plus 1 if the 2023–25 trend was a labour shortage. Elevator mechanic scores 2 because Job Bank gave no regional outlook.',
+  basis:'Job Bank regional outlook pages (outlook December 2025, trend July 2026). The Chatham-Kent municipal page had no trade data.',
+  sure:'Medium to low. The region is larger than Chatham-Kent and the samples for small trades are thin.'},
+ {k:'ai',short:'AI-safe',label:'Safe from AI',group:'sec',type:'j',
+  measures:'How unlikely it is that AI or robots replace a meaningful share of the trade’s work over the next 10 to 15 years. 5 = least likely.',
+  how:'My judgment. Variable on-site work (electrical, plumbing, HVAC, elevator) scores high. Repetitive shop work (production welding, machining, tool and die) and plants that can be monitored remotely score lower.',
+  basis:'Statistics Canada’s January 2026 analysis (trades are less exposed than office work, and exposure is not job loss), a Planera study reported by Workplace Journal (secondhand), and trade-specific robot reports.',
+  sure:'Low. I found no trade-specific study, and the percentages in circulation are secondhand.'},
+ {k:'entry',short:'Entry',label:'Ease of getting started',group:'path',type:'r',
+  measures:'How easy it is to land a first apprenticeship spot, which needs an employer to sponsor you.',
+  how:'Start at 3. Plus 1 for Grade 10 as the minimum education. Plus 1 if the local trend was a labour shortage. Minus 1 if there is no local outlook. Minus 1 if the region has a labour surplus or Job Bank lists several experienced workers unemployed (crane, millwright, carpenter, welder, tool and die, sheet metal). Two manual adjustments: electrician minus 1 (employers prefer pre-apprenticeship graduates) and powerline minus 2 (few spots, utilities hire from college programs). Held between 1 and 5.',
+  basis:'Skilled Trades Ontario apprenticeship chart (2026), Job Bank regional outlooks, college and employer pages.',
+  sure:'Low to medium. I found no vacancy counts by trade for Chatham-Kent.'},
+ {k:'costs',short:'Low cost',label:'Low start-up cost',group:'path',type:'j',
+  measures:'What you pay to get started: tools, school fees, certification. 5 = cheapest.',
+  how:'My judgment. Trades that expect a large personal toolbox score lowest (heavy-duty and automotive technicians, 1), and trades where the employer supplies most gear score highest. Ontario’s Tools Grant ($400 to $1,000 by trade group) is assumed.',
+  basis:'Ontario Tools Grant amounts and trade norms. I did not compile price lists.',
+  sure:'Low. Check tool lists with the school or employer.'},
+ {k:'up',short:'Move up',label:'Moving up and income ceiling',group:'path',type:'j',
+  measures:'How many routes lead to foreman, estimator, inspector, project manager or your own business, and how far income can climb.',
+  how:'My judgment. Trades with licensing or contracting routes score highest (electrician 5, plumber 5). Self-employment share from Job Bank was an input (carpenter 35%, plumber 18%, auto 17%, HVAC-R 14%).',
+  basis:'Job Bank self-employment shares, college and union pages, and the high-end wage in the detail view.',
+  sure:'Low to medium. It is a reading of career routes, not a measured outcome.'},
+ {k:'exit',short:'Exit',label:'Exit ramps at 45 to 50',group:'path',type:'j',
+  measures:'Whether you can move off the tools later into estimating, inspecting, instructing, supervising or sales.',
+  how:'My judgment. 5 means several clear, well-paid routes off the tools. 3 means a few, mostly supervisory.',
+  basis:'Typical career paths named by colleges and unions for each trade.',
+  sure:'Low. It is mostly judgment.'},
+ {k:'cond',short:'Daily',label:'Day-to-day conditions',group:'body',type:'j',
+  measures:'Indoors or outdoors, shift work, call-outs, travel and weather. 5 = the most regular and comfortable.',
+  how:'My judgment from where and when the work is done. Indoor plants and shops with regular hours score high. Storm call-outs, travel and all-weather outdoor work score low.',
+  basis:'Job Bank occupation descriptions and typical employer settings.',
+  sure:'Low. Individual employers differ a lot.'},
+ {k:'acute',short:'Safety',label:'Injury safety',group:'body',type:'j',
+  measures:'The risk of a sudden serious injury: falls, electrical contact, crushing, burns, storm work. 5 = lowest risk.',
+  how:'My judgment from the hazards of the work. Powerline scores 1, and elevator, pipefitting and carpentry score 2. Plant-based and indoor work scores highest.',
+  basis:'WSIB reports sprains and strains as about 34% of allowed lost-time claims in Ontario. I found no trade-by-trade injury rates.',
+  sure:'Low. Reliable trade-level injury data would replace this.'},
+ {k:'wear',short:'Body',label:'Light on the body (long term)',group:'body',type:'j',
+  measures:'Cumulative wear on knees, back, shoulders, hearing and lungs across a 30-year career. 5 = lightest.',
+  how:'My judgment from the physical demands. Seated, monitoring or indoor work (crane operator, power engineer, industrial electrician) scores 5. Heavy components and awkward positions (heavy-duty technician, welder) score 1.',
+  basis:'Job descriptions and my reading of trade conditions.',
+  sure:'Low. Fitness, employer and specialization change this a lot.'}
+];
+const FK=FACTORS.map(f=>f.k);
+const FBY=Object.fromEntries(FACTORS.map(f=>[f.k,f]));
+const PLIST=[
+ {id:'six',label:'Original six',desc:'The weights behind the document’s headline ranking: pay 20, moving up 20, stability 15, AI 15, Ontario demand 15, body 15 (split between injury safety and long-term wear).'},
+ {id:'fast',label:'Fastest start',desc:'Early earnings, easy entry, low start-up cost and local jobs count most.'},
+ {id:'home',label:'Stay local',desc:'Chatham-Kent and Windsor–Sarnia demand counts most, then easy entry and steady work.'},
+ {id:'money',label:'Top earnings',desc:'Pay, moving up and benefits count most.'},
+ {id:'body',label:'Easy on the body',desc:'Long-term wear, injury safety and day-to-day conditions count most.'},
+ {id:'ai',label:'Safest from AI',desc:'AI exposure counts most, then Ontario demand and stability.'},
+ {id:'secure',label:'Rock-solid job',desc:'Stability, benefits and demand count most.'},
+ {id:'equal',label:'All equal',desc:'Every one of the 14 factors counts the same.'},
+ {id:'data',label:'Data only',desc:'Only the seven factors built from published figures. It shows how much of a trade’s rank depends on my judgment.'}
+];
+const JOBBANK={pe:7829,elev:723,elec:20680,pipe:21460,line:4740,hvac:297827,plum:4747,inde:16893,crane:7891,mill:14700,hdet:7480,carp:6406,sheet:4771,auto:14799,weld:23228,tnd:7182};
+const SOURCES=[
+ ['Job Bank market reports (wages and outlooks)','https://www.jobbank.gc.ca/marketreport'],
+ ['Skilled Trades Ontario apprenticeship programs chart (2026)','https://www.skilledtradesontario.ca/wp-content/uploads/2026/08/Apprenticeship-Programs-Chart-EN.pdf'],
+ ['Statistics Canada: AI exposure of occupations, January 2026','https://www150.statcan.gc.ca/n1/pub/36-28-0001/2026001/article/00001-eng.htm'],
+ ['Workplace Journal: skilled trades among safest jobs from automation (Planera study)','https://workplacejournal.co.uk/2026/04/emergency-responders-and-skilled-trades-among-safest-jobs-from-automation-study-finds/'],
+ ['BuildForce Canada: Ontario construction outlook, July 2026','https://www.buildforce.ca/en/press-release/construction-investment-rises-through-to-2035-in-ontario-supported-by-rebounding-residential-growth-and-sustained-non-residential-demand/'],
+ ['IESO: 2026 Annual Planning Outlook','https://ieso.ca/-/media/Files/IESO/Document-Library/planning-forecasts/apo/2026/2026-Annual-Planning-Outlook.pdf'],
+ ['Link2Build: top work injury in Ontario (WSIB)','https://www.link2build.ca/news/articles/2026/february/think-you-know-ontario-s-top-work-injury-think-again'],
+ ['HR Reporter: Canadian Automatic Sprinkler Association agreement','https://www.hrreporter.com/chrr-plus/labour-relations/canadian-automatic-sprinkler-association/337557']
+];
+
+const STORE='ontario-trades-explorer-v2';
+const state={w:Object.assign({},PROFILES.six),prof:'six',g10:false,loc:false,sort:'score',open:null};
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(STORE)||'null');
+    if(s&&s.w&&FK.every(k=>typeof s.w[k]==='number')){state.w=s.w;state.prof=s.prof||'custom';state.g10=!!s.g10;state.loc=!!s.loc;}
+  }catch(e){}
+}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({w:state.w,prof:state.prof,g10:state.g10,loc:state.loc}))}catch(e){}}
+
+function total(w){return FK.reduce((a,k)=>a+w[k],0)}
+function scoreOf(t,w){const tot=total(w);return tot>0?FK.reduce((a,k)=>a+t.s[k]*w[k],0)/tot:0}
+function r2(x){return Math.round(x*100)/100}
+function visible(){
+  return TRADES.filter(t=>{
+    if(state.g10&&!/Grade 10/.test(t.edu))return false;
+    if(state.loc&&(t.ws_out==='Limited'||t.ws_out==='Very limited'))return false;
+    return true;
+  });
+}
+function ranks(list,w){
+  const sc=list.map(t=>({t,s:r2(scoreOf(t,w))}));
+  const m=new Map();
+  sc.forEach(a=>{m.set(a.t.k,{s:a.s,rank:1+sc.filter(b=>b.s>a.s).length,tie:sc.filter(b=>b.s===a.s).length>1})});
+  return m;
+}
+function money(x){return '$'+x.toFixed(2)}
+
+function buildChips(){
+  const el=document.getElementById('chips');
+  el.innerHTML=PLIST.map(p=>`<button type="button" class="chip" data-p="${p.id}" aria-pressed="false">${esc(p.label)}</button>`).join('');
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b)return;
+    setProfile(b.dataset.p);
+  });
+}
+function setProfile(id){
+  state.w=Object.assign({},PROFILES[id]);state.prof=id;
+  syncSliders();update();
+}
+function buildSliders(){
+  let h='';
+  GROUPS.forEach(g=>{
+    h+=`<fieldset class="grp"><legend>${esc(g.label)}</legend>`;
+    FACTORS.filter(f=>f.group===g.id).forEach(f=>{
+      h+=`<div class="slider"><label for="w-${f.k}"><span>${esc(f.label)}</span><span class="tag ${f.type}">${TL[f.type]}</span></label>
+      <div class="srow"><input type="range" id="w-${f.k}" data-k="${f.k}" min="0" max="40" step="0.5"><output id="o-${f.k}" for="w-${f.k}"></output></div></div>`;
+    });
+    h+='</fieldset>';
+  });
+  const box=document.getElementById('sliders');box.innerHTML=h;
+  box.addEventListener('input',e=>{
+    const k=e.target.dataset.k;if(!k)return;
+    state.w[k]=parseFloat(e.target.value);state.prof='custom';update();
+  });
+}
+function syncSliders(){
+  FK.forEach(k=>{const i=document.getElementById('w-'+k);if(i)i.value=state.w[k]});
+  shares();
+}
+function shares(){
+  const tot=total(state.w);
+  FK.forEach(k=>{const o=document.getElementById('o-'+k);if(o)o.textContent=(tot>0?Math.round(state.w[k]/tot*100):0)+'%'});
+}
+
+function buildHead(){
+  const h=document.getElementById('head');
+  let s=`<span></span><button type="button" class="hb" data-s="name" aria-pressed="false">Trade</button><button type="button" class="hb" data-s="score" aria-pressed="true">Weighted score</button>`;
+  let prev=null;
+  FACTORS.forEach(f=>{
+    const gs=prev&&prev!==f.group?' gs':'';prev=f.group;
+    s+=`<div class="hf${gs}"><button type="button" class="hb" data-s="${f.k}" aria-pressed="false" title="${esc(f.label)}">${esc(f.short)}</button><span class="tag ${f.type}" title="${TL[f.type]}">${f.type.toUpperCase()}</span></div>`;
+  });
+  h.innerHTML=s;
+  h.addEventListener('click',e=>{const b=e.target.closest('.hb');if(b)setSort(b.dataset.s)});
+  const sel=document.getElementById('sortsel');
+  sel.innerHTML=`<option value="score">Weighted score</option><option value="name">Trade name</option>`+FACTORS.map(f=>`<option value="${f.k}">${esc(f.label)}</option>`).join('');
+  sel.addEventListener('change',()=>setSort(sel.value));
+}
+function setSort(k){state.sort=k;update()}
+
+function detail(t,rk){
+  const jb=JOBBANK[t.k];
+  const ws=t.ws!=null?money(t.ws):'no figure';
+  const hours=t.hours?`${t.hours.toLocaleString('en-CA')} h (${t.sch.toLocaleString('en-CA')} in school)`:'Not an apprenticeship';
+  const ft=[
+   ['Ontario median',money(t.med)+'/hr'],['Ontario high end',money(t.hi)+'/hr'],['Windsor–Sarnia median',ws+(t.ws!=null?'/hr':'')],
+   ['Employed in Ontario',t.emp.toLocaleString('en-CA')],['Work all year',t.yr+'%'],['Employer benefits',t.ben+'%'],
+   ['Self-employed',t.se+'%'],['Training',hours],['Minimum education',t.edu],['Trade status',t.comp],
+   ['Outlook 2025–27',`Ontario ${t.on_out} · Windsor–Sarnia ${t.ws_out}`],['Local trend 2023–25',t.ws_trend],
+   ['First 5 years (model)','about $'+(Math.round(t.early/1000)*1000).toLocaleString('en-CA')]
+  ];
+  const w=t.watch?`<div class="w"><b>Watch:</b> ${esc(t.watch)}</div>`:'';
+  return `<div class="detail" id="d-${t.k}">
+   <div><h4>Key numbers</h4><dl class="facts">${ft.map(a=>`<dt>${esc(a[0])}</dt><dd>${esc(a[1])}</dd>`).join('')}</dl></div>
+   <div><h4>Pros</h4><ul>${t.pros.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
+   <div><h4>Cons</h4><ul>${t.cons.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>
+   <div class="lines span2"><div><b>Getting in:</b> ${esc(t.entry)}</div><div><b>Start-up costs:</b> ${esc(t.cost)}</div><div><b>Day to day:</b> ${esc(t.cond)}</div><div><b>Where it leads:</b> ${esc(t.exit)}</div>${w}
+   <div class="dlinks"><a href="https://www.jobbank.gc.ca/marketreport/wages-occupation/${jb}/ON" target="_blank" rel="noopener">Job Bank wages</a><a href="https://www.jobbank.gc.ca/marketreport/outlook-occupation/${jb}/ON" target="_blank" rel="noopener">Job Bank outlook</a></div></div>
+  </div>`;
+}
+
+function update(){
+  shares();
+  const w=state.w, list=visible(), tot=total(w);
+  const rk=ranks(list,w), base=ranks(list,PROFILES.six);
+  // chips
+  document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.p===state.prof)));
+  const pd=PLIST.find(p=>p.id===state.prof);
+  document.getElementById('pdesc').textContent=pd?pd.desc:'Custom weights. Pick a profile to start over.';
+  document.getElementById('f-g10').checked=state.g10;
+  document.getElementById('f-local').checked=state.loc;
+  document.getElementById('count').textContent=`Showing ${list.length} of ${TRADES.length} trades`;
+  document.getElementById('reset').textContent='Reset to original six';
+  // sort
+  const sorted=list.slice().sort((a,b)=>{
+    const sa=rk.get(a.k).s,sb=rk.get(b.k).s;
+    if(state.sort==='name')return a.name.localeCompare(b.name);
+    if(state.sort!=='score'){const d=b.s[state.sort]-a.s[state.sort];if(d)return d}
+    if(sb!==sa)return sb-sa;
+    const ba=base.get(a.k).s,bb=base.get(b.k).s;
+    return bb!==ba?bb-ba:a.name.localeCompare(b.name);
+  });
+  document.querySelectorAll('#head .hb').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===state.sort)));
+  document.getElementById('sortsel').value=state.sort;
+  const sn=document.getElementById('sortnote');
+  sn.textContent=tot>0?(state.sort==='score'?'Weighted score out of 5. Click a column heading to sort by that factor.':'Sorted by '+(state.sort==='name'?'trade name':FBY[state.sort].label.toLowerCase())+'. Rank numbers still follow the weighted score.'):'Every weight is zero. Move a slider above zero to rank the trades.';
+  // top 3
+  const byScore=list.slice().sort((a,b)=>rk.get(b.k).s-rk.get(a.k).s||a.name.localeCompare(b.name)).slice(0,3);
+  document.getElementById('top3').innerHTML=byScore.map((t,i)=>`<li><b>${rk.get(t.k).rank}<small>${tot>0?rk.get(t.k).s.toFixed(2):'–'}</small></b><span>${esc(t.name)}</span></li>`).join('');
+  // rows
+  let h='';
+  sorted.forEach(t=>{
+    const r=rk.get(t.k), b=base.get(t.k), d=b.rank-r.rank;
+    const open=state.open===t.k;
+    const dl=(tot>0&&d!==0)?`<span class="dl ${d>0?'up':'down'}" title="${d>0?'Up':'Down'} ${Math.abs(d)} place${Math.abs(d)>1?'s':''} compared with the original six-factor ranking">${d>0?'▲':'▼'}${Math.abs(d)}</span>`:'';
+    let prev=null;
+    const cells=FACTORS.map(f=>{
+      const gs=prev&&prev!==f.group?' gs':'';prev=f.group;
+      const v=t.s[f.k];
+      return `<span class="cell h${v}${gs}${f.type==='j'?' j':''}" role="img" aria-label="${esc(f.label)}: ${v} of 5"><i aria-hidden="true">${esc(f.short)}</i><span aria-hidden="true">${v}</span></span>`;
+    }).join('');
+    const pct=tot>0?Math.max(0,(r.s-1)/4*100):0;
+    h+=`<li class="card${open?' open':''}"><div class="rowgrid">
+      <div class="rk"><b>${tot>0?r.rank+(r.tie?'=':''):'–'}</b>${dl}</div>
+      <div class="nm"><button type="button" class="tbtn" data-t="${t.k}" aria-expanded="${open}" aria-controls="d-${t.k}">${esc(t.name)}</button></div>
+      <div class="sc"><div class="bar" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></div><b>${tot>0?r.s.toFixed(2):'–'}</b></div>
+      <div class="cells">${cells}</div></div>${open?detail(t):''}</li>`;
+  });
+  document.getElementById('rank').innerHTML=h;
+  save();
+}
+
+function buildGuide(){
+  let h='';
+  GROUPS.forEach(g=>{
+    h+=`<h3 class="gh">${esc(g.label)}</h3><div class="ggrid">`;
+    FACTORS.filter(f=>f.group===g.id).forEach(f=>{
+      h+=`<article class="gcard" id="g-${f.k}"><header><h3>${esc(f.label)}</h3><span class="tag ${f.type}">${TL[f.type]}</span></header>
+      <dl><div><dt>What it measures</dt><dd>${esc(f.measures)}</dd></div><div><dt>How it is scored</dt><dd>${esc(f.how)}</dd></div><div><dt>Basis</dt><dd>${esc(f.basis)}</dd></div><div><dt>How far to trust it</dt><dd>${esc(f.sure)}</dd></div></dl></article>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('gbody').innerHTML=h;
+  document.getElementById('src').innerHTML=SOURCES.map(s=>`<li><a href="${s[1]}" target="_blank" rel="noopener">${esc(s[0])}</a></li>`).join('');
+}
+
+function init(){
+  load();
+  buildChips();buildSliders();buildHead();buildGuide();
+  document.getElementById('f-g10').addEventListener('change',e=>{state.g10=e.target.checked;update()});
+  document.getElementById('f-local').addEventListener('change',e=>{state.loc=e.target.checked;update()});
+  document.getElementById('reset').addEventListener('click',()=>{state.g10=false;state.loc=false;state.sort='score';state.open=null;setProfile('six')});
+  document.getElementById('rank').addEventListener('click',e=>{
+    const b=e.target.closest('.tbtn');if(!b)return;
+    state.open=(state.open===b.dataset.t)?null:b.dataset.t;update();
+  });
+  const sb=document.getElementById('sliderbox');
+  if(window.matchMedia&&window.matchMedia('(max-width:1099px)').matches)sb.open=false;
+  syncSliders();update();
+}
+init();
+</script>
+
+</body></html>
